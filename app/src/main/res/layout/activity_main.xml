@@ -5,7 +5,7 @@
     style="@style/screenbg"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.example.spotipplemusic.MainActivity">
+    tools:context=".MainActivity">
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline3"
