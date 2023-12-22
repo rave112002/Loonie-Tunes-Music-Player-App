@@ -9,11 +9,13 @@
 
     <ImageView
         android:id="@+id/loonie"
-        android:layout_width="700px"
-        android:layout_height="700px"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:background="@drawable/loonietunes"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/loonietunes" />
+         />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

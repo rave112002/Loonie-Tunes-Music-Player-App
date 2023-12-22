@@ -1,33 +1,30 @@
 package com.example.loonietunes;
 
-import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
-import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.media.MediaPlayer;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Environment;
+import android.util.Log;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.ListView;
-import android.widget.Toast;
+import android.widget.Button;
+import android.widget.TextView;
 
-import java.io.File;
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
-    private static final int PERMISSION_REQUEST_CODE = 1;
-    private ListView songListView;
-    private ArrayList<String> songs;
-    private MediaPlayer mediaPlayer;
-    private int currentPosition = -1;
+    RecyclerView recyclerView;
+    TextView noMusicTextView;
+    ArrayList<AudioModel> songsList = new ArrayList<>();
+    Button favoritesBtn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,77 +32,97 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        songListView = findViewById(R.id.songsList);
-        mediaPlayer = new MediaPlayer();
+        recyclerView = findViewById(R.id.recyclerview);
+        noMusicTextView = findViewById(R.id.no_songs_text);
+        favoritesBtn = findViewById(R.id.favoritesBtn);
 
-        if (checkPermission()) {
-            loadSongs();
+        songsList = AudioUtils.loadAudioFiles(this);
+
+        if (songsList.size() == 0) {
+            noMusicTextView.setVisibility(android.view.View.VISIBLE);
         } else {
-            requestPermission();
+            recyclerView.setLayoutManager(new LinearLayoutManager(this));
+            recyclerView.setAdapter(new MusicListAdapter(songsList, getApplicationContext()));
         }
 
-        songListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        favoritesBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                openPlayerActivity(position);
+            public void onClick(View v) {
+                // Start the Favorites activity
+                Intent intent = new Intent(MainActivity.this, Favorites.class);
+                startActivity(intent);
             }
         });
-    }
 
-    private void openPlayerActivity(int position) {
-        Intent intent = new Intent(this, PlayerActivity.class);
-        intent.putExtra("song_position", position);
-        startActivity(intent);
-    }
+        loadFavoritesFromPreferences();
 
-    private void loadSongs() {
-        songs = findSongs(Environment.getExternalStorageDirectory());
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, songs);
-        songListView.setAdapter(adapter);
-    }
-
-    private ArrayList<String> findSongs(File directory) {
-        ArrayList<String> songList = new ArrayList<>();
-        File[] files = directory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory() && !file.isHidden()) {
-                    songList.addAll(findSongs(file));
-                } else if (file.getName().endsWith(".mp3")) {
-                    songList.add(file.getName());
-                }
-            }
-        }
-        return songList;
-    }
-
-    private boolean checkPermission() {
-        int readExternalPermission = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE);
-        return readExternalPermission == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void requestPermission() {
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+        SharedPreferences preferences = getSharedPreferences("MyPreferences", Context.MODE_PRIVATE);
+        preferences.registerOnSharedPreferenceChangeListener(this);
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                loadSongs();
-            } else {
-                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
-            }
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        if (key.equals("favorites")) {
+            saveFavoritesToPreferences();
         }
     }
+
+    // ... existing code ...
 
     @Override
     protected void onDestroy() {
+        // Unregister the listener to avoid memory leaks
+        SharedPreferences preferences = getSharedPreferences("MyPreferences", Context.MODE_PRIVATE);
+        preferences.unregisterOnSharedPreferenceChangeListener(this);
+
         super.onDestroy();
-        if (mediaPlayer != null) {
-            mediaPlayer.release();
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if(recyclerView!=null){
+            recyclerView.setAdapter(new MusicListAdapter(songsList,getApplicationContext()));
+        }
+        loadFavoritesFromPreferences();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.d("MainActivity", "onPause called");
+        saveFavoritesToPreferences();
+    }
+
+    private void saveFavoritesToPreferences() {
+        Set<String> favoritesSet = new HashSet<>();
+        for (AudioModel audioModel : songsList) {
+            if (audioModel.isFavorite()) {
+                favoritesSet.add(audioModel.getPath());
+            }
+        }
+        SharedPreferences preferences = getSharedPreferences("MyPreferences", Context.MODE_PRIVATE);
+        preferences.edit().putStringSet("favorites", favoritesSet).apply();
+    }
+
+    private void loadFavoritesFromPreferences() {
+        Set<String> favoritesPaths = getSharedPreferences("MyPreferences", MODE_PRIVATE)
+                .getStringSet("favorites", new HashSet<>());
+
+        // Mark songs as favorites based on the loaded paths
+        for (AudioModel audioModel : songsList) {
+            audioModel.setFavorite(favoritesPaths.contains(audioModel.getPath()));
         }
     }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.d("MainActivity", "onStop called");
+        saveFavoritesToPreferences();
+    }
+
+
 
 }

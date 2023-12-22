@@ -1,112 +1,117 @@
 package com.example.loonietunes;
 
-import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
 import android.widget.ImageView;
 
+import androidx.activity.ComponentActivity;
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
 
-import com.example.loonietunes.R;
+import java.util.ArrayList;
 
-public class SplashView extends AppCompatActivity {
+public class SplashView extends ComponentActivity {
 
     private static final int PERMISSION_REQUEST_READ_EXTERNAL_STORAGE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         EdgeToEdge.enable(this);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash_view);
 
-        // Check for EdgeToEdge class or utility and handle accordingly
-        // Assuming EdgeToEdge is a utility class for handling UI layout, adjust as needed
+        // Animation setup
+        setupRotationAnimation();
 
+        // Check storage permission
+        requestStoragePermission();
+    }
+
+    private void setupRotationAnimation() {
         ImageView imageView = findViewById(R.id.loonie);
 
-        // Create a RotateAnimation
         RotateAnimation rotateAnimation = new RotateAnimation(
-                0f, 360f, // degrees to rotate from/to
-                Animation.RELATIVE_TO_SELF, 0.5f, // pivot point x-axis
-                Animation.RELATIVE_TO_SELF, 0.5f // pivot point y-axis
+                0f, 360f,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF, 0.5f
         );
 
-        rotateAnimation.setDuration(2000); // duration in milliseconds
+        rotateAnimation.setDuration(3000);
 
-        // Set an animation listener to start the next activity after the rotation animation completes
         rotateAnimation.setAnimationListener(new Animation.AnimationListener() {
             @Override
             public void onAnimationStart(Animation animation) {
-                // Animation started
+                Log.d("SplashView", "Animation started");
             }
 
             @Override
             public void onAnimationEnd(Animation animation) {
-                // Animation ended, navigate to the main activity or next screen
-                navigateToMainActivity();
+                Log.d("SplashView", "Animation ended");
+                // Start scanning for songs in the background
+                new SongLoaderTask().execute();
             }
 
             @Override
             public void onAnimationRepeat(Animation animation) {
-                // Animation repeated, if needed
+                Log.d("SplashView", "Animation repeated");
             }
         });
 
-        // Start the animation
         imageView.startAnimation(rotateAnimation);
-
-        // Request the READ_EXTERNAL_STORAGE permission
-        requestStoragePermission();
     }
 
     private void requestStoragePermission() {
-        // Check if the permission has not been granted
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
 
-            // Request the permission
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-                    PERMISSION_REQUEST_READ_EXTERNAL_STORAGE);
+            // Use the new permission request API for better readability
+            requestPermissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE);
         } else {
-            // Permission already granted, proceed with your logic
-            navigateToMainActivity();
+            // Permission already granted, delayed navigation to MainActivity
+            new Handler().postDelayed(() -> navigateToMainActivity(), 3000);
         }
     }
 
-    // Handle the result of the permission request
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults); // Add this line
-
-        if (requestCode == PERMISSION_REQUEST_READ_EXTERNAL_STORAGE) {
-            // Check if the permission was granted
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, proceed with your logic
-                navigateToMainActivity();
-            } else {
-                // Permission denied, handle accordingly (show a message, exit the app, etc.)
-                // For simplicity, we finish the activity here
-                finish();
+    private final ActivityResultLauncher<String> requestPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            isGranted -> {
+                if (isGranted) {
+                    // Permission granted, delayed navigation to MainActivity
+                    new Handler().postDelayed(() -> navigateToMainActivity(), 3000);
+                } else {
+                    // Permission denied, finish the activity
+                    finish();
+                }
             }
-        }
-    }
+    );
 
     private void navigateToMainActivity() {
-        // Start the main activity or next screen after a delay
-        new Handler().postDelayed(() -> {
-            Intent intent = new Intent(SplashView.this, MainActivity.class);
-            startActivity(intent);
-            overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
-            finish();
-        }, 2000); // Adjust the delay as needed
+        Intent intent = new Intent(SplashView.this, MainActivity.class);
+        startActivity(intent);
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        finish();
+    }
+
+    // AsyncTask to load songs in the background
+    private static class SongLoaderTask extends AsyncTask<Void, Void, ArrayList<AudioModel>> {
+
+        @Override
+        protected ArrayList<AudioModel> doInBackground(Void... voids) {
+            // Replace the following line with your actual implementation to load audio files
+            return AudioUtils.loadAudioFiles();
+        }
+
+        @Override
+        protected void onPostExecute(ArrayList<AudioModel> result) {
+            // Songs loaded, you can handle the result if needed
+        }
     }
 }
