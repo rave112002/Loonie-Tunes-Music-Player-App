@@ -88,6 +88,14 @@ public class PlayerActivity extends AppCompatActivity {
 
             }
         });
+
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                // Automatically play the next song when the current song finishes
+                playNextSong();
+            }
+        });
     }
 
     void setResourcesWithMusic() {

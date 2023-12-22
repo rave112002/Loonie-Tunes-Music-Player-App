@@ -25,6 +25,9 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
     private final ArrayList<AudioModel> songsList;
     private final Context context;
 
+
+
+
     public MusicListAdapter(ArrayList<AudioModel> songsList, Context context) {
         this.songsList = songsList;
         this.context = context;
@@ -41,6 +44,7 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         AudioModel audioModel = songsList.get(position);
         holder.titleTextView.setText(audioModel.getTitle());
+        // You can set additional data to your view items here if needed
 
         // Check if the current song is a favorite and update UI
         if (audioModel.isFavorite()) {
@@ -49,9 +53,9 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
             holder.favBtn.setImageResource(R.drawable.heart);
         }
 
-        if (MyMediaPlayer.currentIndex == position) {
+        if(MyMediaPlayer.currentIndex==position){
             holder.titleTextView.setTextAppearance(R.style.medium);
-        } else {
+        }else{
             holder.titleTextView.setTextAppearance(R.style.normal);
         }
 
@@ -75,27 +79,18 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                //navigate to another activity
+
                 MyMediaPlayer.getInstance().reset();
                 MyMediaPlayer.currentIndex = position;
                 Intent intent = new Intent(context, PlayerActivity.class);
-                intent.putExtra("LIST", songsList);
+                intent.putExtra("LIST",songsList);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(intent);
+
             }
         });
 
-        // Check if the song is in favorites and update UI
-        if (isSongInFavorites(audioModel)) {
-            holder.favBtn.setImageResource(R.drawable.heart_filled);
-        } else {
-            holder.favBtn.setImageResource(R.drawable.heart);
-        }
-    }
-
-    // Add this method to check if a song is in favorites
-    private boolean isSongInFavorites(AudioModel audioModel) {
-        Set<String> favoritesSet = getFavoritesFromPreferences();
-        return favoritesSet.contains(audioModel.getPath());
     }
 
     @Override
@@ -106,6 +101,7 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public final TextView titleTextView;
         public final ImageButton favBtn;  // Add this line
+
 
         public ViewHolder(View view) {
             super(view);
@@ -138,22 +134,21 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
         }
     }
 
+
     // Add this method for showing a Toast
     private void showToast(String message) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
     }
 
-    private void removeFromFavorites(AudioModel audioModel) {
-        // Get the current favorites from SharedPreferences
-        Set<String> favoritesSet = getFavoritesFromPreferences();
 
+    private void removeFromFavorites(AudioModel audioModel) {
         // Check if the song is in favorites
-        if (favoritesSet.contains(audioModel.getPath())) {
+        if (audioModel.isFavorite()) {
             // Remove the current song path from the set
-            favoritesSet.remove(audioModel.getPath());
+            audioModel.setFavorite(false);
 
             // Save the updated set back to SharedPreferences
-            saveFavoritesToPreferences(favoritesSet);
+            saveFavoritesToPreferences(getFavoritesFromPreferences());
 
             // Update UI based on the new favorite status
             notifyDataSetChanged();
