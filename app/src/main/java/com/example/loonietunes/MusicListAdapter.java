@@ -1,10 +1,12 @@
 package com.example.loonietunes;
 
+
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Color;
-import android.graphics.Typeface;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,17 +15,19 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.res.ResourcesCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
+
 public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.ViewHolder> {
 
     private final ArrayList<AudioModel> songsList;
     private final Context context;
+    private ArrayList<AudioModel> dataSet;
+
 
 
 
@@ -31,6 +35,8 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
     public MusicListAdapter(ArrayList<AudioModel> songsList, Context context) {
         this.songsList = songsList;
         this.context = context;
+        this.dataSet = dataSet;
+
     }
 
     @NonNull
@@ -44,18 +50,19 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         AudioModel audioModel = songsList.get(position);
         holder.titleTextView.setText(audioModel.getTitle());
-        // You can set additional data to your view items here if needed
 
         // Check if the current song is a favorite and update UI
         if (audioModel.isFavorite()) {
-            holder.favBtn.setImageResource(R.drawable.heart_filled);
+            int heartResId = isDarkMode() ? R.drawable.heart_filled_dark : R.drawable.heart_filled_light;
+            holder.favBtn.setImageResource(heartResId);
         } else {
-            holder.favBtn.setImageResource(R.drawable.heart);
+            int heartResId = isDarkMode() ? R.drawable.heart_dark : R.drawable.heart_light;
+            holder.favBtn.setImageResource(heartResId);
         }
 
-        if(MyMediaPlayer.currentIndex==position){
+        if(MyMediaPlayer.currentIndex == position) {
             holder.titleTextView.setTextAppearance(R.style.medium);
-        }else{
+        } else {
             holder.titleTextView.setTextAppearance(R.style.normal);
         }
 
@@ -67,10 +74,12 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
 
                 // Update UI based on the new favorite status
                 if (audioModel.isFavorite()) {
-                    holder.favBtn.setImageResource(R.drawable.heart_filled);
+                    int heartResId = isDarkMode() ? R.drawable.heart_filled_dark : R.drawable.heart_filled_light;
+                    holder.favBtn.setImageResource(heartResId);
                     addToFavorites(audioModel);
                 } else {
-                    holder.favBtn.setImageResource(R.drawable.heart);
+                    int heartResId = isDarkMode() ? R.drawable.heart_dark : R.drawable.heart_light;
+                    holder.favBtn.setImageResource(heartResId);
                     removeFromFavorites(audioModel);
                 }
             }
@@ -79,18 +88,20 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //navigate to another activity
-
+                // Navigate to another activity
                 MyMediaPlayer.getInstance().reset();
                 MyMediaPlayer.currentIndex = position;
                 Intent intent = new Intent(context, PlayerActivity.class);
                 intent.putExtra("LIST",songsList);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(intent);
-
             }
         });
+    }
 
+    private boolean isDarkMode() {
+        int nightModeFlags = context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        return nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
     }
 
     @Override
@@ -110,6 +121,17 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
 
         }
     }
+
+    public void updateData(ArrayList<AudioModel> newData) {
+        dataSet.clear();
+        dataSet.addAll(newData);
+        notifyDataSetChanged();
+    }
+
+
+
+
+
 
     private void addToFavorites(AudioModel audioModel) {
         // Get the current favorites from SharedPreferences
@@ -170,5 +192,3 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.View
         preferences.edit().putStringSet("favorites", favoritesSet).apply();
     }
 }
-
-

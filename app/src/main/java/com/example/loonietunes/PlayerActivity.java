@@ -6,6 +6,7 @@ import androidx.appcompat.view.ContextThemeWrapper;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -15,20 +16,24 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class PlayerActivity extends AppCompatActivity {
 
     TextView songTitleTxt, startTimeTxt, endTimeTxt;
     SeekBar seekBar;
-    ImageView pauseplayBtn, nextBtn, previousBtn, musicIcon;
+    ImageView pauseplayBtn, nextBtn, previousBtn, musicIcon, favBtn;
     ArrayList<AudioModel> songsList;
     AudioModel currentSong;
     MediaPlayer mediaPlayer = MyMediaPlayer.getInstance();
     int x = 0;
+    Set<String> favoritesSet;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,10 +49,13 @@ public class PlayerActivity extends AppCompatActivity {
         nextBtn = findViewById(R.id.nextBtn);
         previousBtn = findViewById(R.id.prevBtn);
         musicIcon = findViewById(R.id.loonie);
+        favBtn = findViewById(R.id.favBtn);
 
         songTitleTxt.setSelected(true);
 
         songsList = (ArrayList<AudioModel>) getIntent().getSerializableExtra("LIST");
+
+        favoritesSet = getFavoritesFromPreferences();
 
         setResourcesWithMusic();
 
@@ -108,8 +116,10 @@ public class PlayerActivity extends AppCompatActivity {
         pauseplayBtn.setOnClickListener(v -> pausePlay());
         nextBtn.setOnClickListener(v -> playNextSong());
         previousBtn.setOnClickListener(v -> playPreviousSong());
+        favBtn.setOnClickListener(v -> toggleFavorite());
 
         playMusic();
+        updateFavoriteButton();
     }
 
     private void playMusic() {
@@ -124,7 +134,8 @@ public class PlayerActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        updatePlayPauseButtons(); // Set initial play/pause button drawable
+        updatePlayPauseButtons();
+        updateFavoriteButton();// Set initial play/pause button drawable
     }
 
     private void playNextSong() {
@@ -152,6 +163,26 @@ public class PlayerActivity extends AppCompatActivity {
         updatePlayPauseButtons(); // Update play/pause button drawable
     }
 
+    private void toggleFavorite() {
+        // Toggle the favorite status
+        currentSong.setFavorite(!currentSong.isFavorite());
+
+        // Update UI based on the new favorite status
+        updateFavoriteStatus();
+
+        // Add/remove from favorites list and update SharedPreferences
+        if (currentSong.isFavorite()) {
+            addToFavorites(currentSong);
+        } else {
+            removeFromFavorites(currentSong);
+        }
+    }
+
+    private void updateFavoriteStatus() {
+        updateFavoriteButton();
+        // You may add additional logic here if needed
+    }
+
     private void updatePlayPauseButtons() {
         int drawableResId;
         if (isDarkMode()) {
@@ -162,6 +193,62 @@ public class PlayerActivity extends AppCompatActivity {
 
         pauseplayBtn.setImageResource(drawableResId);
     }
+
+    private void updateFavoriteButton() {
+        int drawableResId;
+        if (isDarkMode()) {
+            drawableResId = currentSong.isFavorite() ? R.drawable.heart_filled_dark : R.drawable.heart_dark;
+        } else {
+            drawableResId = currentSong.isFavorite() ? R.drawable.heart_filled_light : R.drawable.heart_light;
+        }
+
+        favBtn.setImageResource(drawableResId);
+    }
+
+    private void addToFavorites(AudioModel audioModel) {
+        if (!favoritesSet.contains(audioModel.getPath())) {
+            // Add the current song path to the set
+            favoritesSet.add(audioModel.getPath());
+
+            // Save the updated set back to SharedPreferences
+            saveFavoritesToPreferences(favoritesSet);
+
+            // Show a Toast indicating that the song has been added to favorites
+            showToast("Added to Favorites: " + audioModel.getTitle());
+        }
+    }
+
+    private void removeFromFavorites(AudioModel audioModel) {
+        if (favoritesSet.contains(audioModel.getPath())) {
+            // Remove the current song path from the set
+            favoritesSet.remove(audioModel.getPath());
+
+            // Save the updated set back to SharedPreferences
+            saveFavoritesToPreferences(favoritesSet);
+
+            // Show a Toast indicating that the song has been removed from favorites
+            showToast("Removed from Favorites: " + audioModel.getTitle());
+        }
+    }
+
+    private Set<String> getFavoritesFromPreferences() {
+        SharedPreferences preferences = getSharedPreferences("MyPreferences", Context.MODE_PRIVATE);
+        // Retrieve the set of favorites from SharedPreferences, defaulting to an empty set
+        return preferences.getStringSet("favorites", new HashSet<>());
+    }
+
+    private void saveFavoritesToPreferences(Set<String> favoritesSet) {
+        SharedPreferences preferences = getSharedPreferences("MyPreferences", Context.MODE_PRIVATE);
+        // Save the set of favorites to SharedPreferences
+        preferences.edit().putStringSet("favorites", favoritesSet).apply();
+    }
+
+    private void showToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+
+
 
     private boolean isDarkMode() {
         int currentNightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
